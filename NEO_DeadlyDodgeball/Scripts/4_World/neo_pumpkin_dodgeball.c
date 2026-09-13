@@ -5,6 +5,47 @@
 
 bool NEO_DodgeBallDebug = false;
 float NEO_DodgeBall_min_velocity = 0.3; //dodge balls aren't deadly below this velocity
+float NEO_DodgeBall_fake_sound_delay = 10; // see RPC handler for RPC_SOUND_ARTILLERY_SINGLE delay before calllater
+
+
+void NEODodgeBall_delay_kill_player(DayZPlayerImplement dzpi)
+{
+    if (dzpi)
+    {
+        dzpi.SetHealth("","",0.0);
+    }
+}
+
+
+void NEODodgeBall_handle_kill(DayZPlayerImplement dzpi)
+{
+    if (dzpi)
+    {
+        PlayerIdentity pi = dzpi.GetIdentity();
+        vector dzpi_pos = dzpi.GetPosition();
+        if (pi)
+        {
+            // drop a contamination RPC on the dying player
+            Param1<vector> pos = new Param1<vector>(vector.Zero);
+            array<ref Param> params = new array<ref Param>();
+            pos.param1 = dzpi_pos;
+            params.Insert(pos);
+            g_Game.RPC(null, ERPCs.RPC_SOUND_CONTAMINATION, params, true, pi);
+        }
+        // dying player dies 500 ms later so they can see/hear FX
+        g_Game.GetCallQueue( CALL_CATEGORY_SYSTEM ).CallLater( NEODodgeBall_delay_kill_player, 500, false, dzpi);
+
+        // everyone else gets an artillery sound
+
+        Param3<vector, vector, float> specpos = new Param3<vector, vector, float>(dzpi_pos, dzpi_pos,
+            NEO_DodgeBall_fake_sound_delay); 
+        array<ref Param> specparams = new array<ref Param>();
+        // We send the message with this set of coords
+        params.Insert(specpos);
+        g_Game.RPC(null, ERPCs.RPC_SOUND_ARTILLERY_SINGLE, specparams, true);
+    }
+}
+
 
 modded class DayZPlayerImplement extends DayZPlayer
 {
@@ -23,7 +64,7 @@ modded class DayZPlayerImplement extends DayZPlayer
                 }
                 if (p.NEO_i_am_a_dodgeball_now)
                 {
-                    this.SetHealth("","",0.0);
+                    NEODodgeBall_handle_kill(this);
                     p.NEO_i_am_a_dodgeball_now = false;
                 }
             }
