@@ -17,32 +17,67 @@ void NEODodgeBall_delay_kill_player(DayZPlayerImplement dzpi)
 }
 
 
-void NEODodgeBall_handle_kill(DayZPlayerImplement dzpi)
+void NEODodgeBall_handle_kill(DayZPlayerImplement dzpi, Pumpkin pumpkin)
 {
     if (dzpi)
     {
         PlayerIdentity pi = dzpi.GetIdentity();
         vector dzpi_pos = dzpi.GetPosition();
-        if (pi)
+
+        PlayerBase victim = PlayerBase.Cast(dzpi);
+        PlayerBase killer = pumpkin.NEO_dodgeball_thrower;
+        // verify real players for logging
+        string vic_pi;
+        string kil_pi;
+        if (victim && killer)
         {
-            // drop a contamination RPC on the dying player
-            Param1<vector> pos = new Param1<vector>(vector.Zero);
-            array<ref Param> params = new array<ref Param>();
-            pos.param1 = dzpi_pos;
-            params.Insert(pos);
-            g_Game.RPC(null, ERPCs.RPC_SOUND_CONTAMINATION, params, true, pi);
+            PlayerIdentity temp_pi = victim.GetIdentity();
+            if (temp_pi)
+            {
+                vic_pi = temp_pi.GetPlainId();
+            }
+            temp_pi = killer.GetIdentity();
+            if (temp_pi)
+            {
+                kil_pi = temp_pi.GetPlainId();
+            }
         }
+
+        // log to gamelabs
+        #ifdef GAMELABS
+        if (victim && killer && vic_pi && kil_pi)
+        {
+            _Payload_PlayerDeath payload;
+            _LogPlayerEx logplayervictim = new _LogPlayerEx(victim);
+            _LogPlayerEx logplayerkiller = new _LogPlayerEx(killer);
+            payload = new _Payload_PlayerDeath(logplayervictim, logplayerkiller, "DodgeBall", "DodgeBall");
+            GetGameLabs().GetApi().PlayerDeath(new _Callback(), payload);
+        }
+        #endif
+
+        // log to admin log
+        PluginAdminLog adm = PluginAdminLog.Cast(GetPlugin(PluginAdminLog));
+        if (adm)
+        {
+            if (victim && killer && vic_pi && kil_pi)
+            {
+                string vic_prefix = adm.GetPlayerPrefix(victim, victim.GetIdentity());
+                string kil_prefix = adm.GetPlayerPrefix(killer, killer.GetIdentity());
+                float dist = vector.Distance(victim.GetPosition(), killer.GetPosition());
+                adm.LogPrint( vic_prefix + " killed by " + kil_prefix + " with DodgeBall" + " from " + dist + " meters " );
+            }
+        }
+
+
+        // drop a contamination RPC on the dying player
+        Param1<vector> pos = new Param1<vector>(vector.Zero);
+        array<ref Param> params = new array<ref Param>();
+        pos.param1 = dzpi_pos;
+        params.Insert(pos);
+        g_Game.RPC(null, ERPCs.RPC_SOUND_CONTAMINATION, params, true);
+
         // dying player dies 500 ms later so they can see/hear FX
         g_Game.GetCallQueue( CALL_CATEGORY_SYSTEM ).CallLater( NEODodgeBall_delay_kill_player, 500, false, dzpi);
-
-        // everyone else gets an artillery sound
-
-        Param3<vector, vector, float> specpos = new Param3<vector, vector, float>(dzpi_pos, dzpi_pos,
-            NEO_DodgeBall_fake_sound_delay); 
-        array<ref Param> specparams = new array<ref Param>();
-        // We send the message with this set of coords
-        params.Insert(specpos);
-        g_Game.RPC(null, ERPCs.RPC_SOUND_ARTILLERY_SINGLE, specparams, true);
     }
 }
 
@@ -64,7 +99,7 @@ modded class DayZPlayerImplement extends DayZPlayer
                 }
                 if (p.NEO_i_am_a_dodgeball_now)
                 {
-                    NEODodgeBall_handle_kill(this);
+                    NEODodgeBall_handle_kill(this, p);
                     p.NEO_i_am_a_dodgeball_now = false;
                 }
             }
@@ -97,6 +132,7 @@ modded class DayZPlayerImplement extends DayZPlayer
 modded class Pumpkin : Edible_Base
 {
     bool NEO_i_am_a_dodgeball_now = false;
+    PlayerBase NEO_dodgeball_thrower;
     
     void NEO_DodgeBallContact(IEntity other)
     {
@@ -169,6 +205,7 @@ modded class Pumpkin : Edible_Base
                         GetGame().AdminLog("Is deadly dodge ball now");
                     }
                     NEO_i_am_a_dodgeball_now = true;
+                    NEO_dodgeball_thrower = p;
                 }
                 else
                 {
