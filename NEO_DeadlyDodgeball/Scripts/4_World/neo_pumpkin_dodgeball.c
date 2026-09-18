@@ -23,8 +23,17 @@ modded class DayZPlayerImplement extends DayZPlayer
                 }
                 if (p.NEO_i_am_a_dodgeball_now)
                 {
-                    this.SetHealth("","",0.0);
-                    p.NEO_i_am_a_dodgeball_now = false;
+                    PlayerBase legplayer = PlayerBase.Cast(this);
+                    if (legplayer)
+                    {
+                        legplayer.SetLegHealth();
+                        if (legplayer.GetModifiersManager().IsModifierActive(eModifiers.MDF_BROKEN_LEGS))//effectively resets the modifier
+                        {
+                            legplayer.GetModifiersManager().DeactivateModifier(eModifiers.MDF_BROKEN_LEGS);
+                        }
+                        legplayer.GetModifiersManager().ActivateModifier(eModifiers.MDF_BROKEN_LEGS);
+                        p.NEO_i_am_a_dodgeball_now = false;
+                    }
                 }
             }
         }
