@@ -45,7 +45,7 @@ modded class SparkPlug
 
         string modinfo = "<ul>";
 
-        string temp = "<li>DodgeBallType: None</li>"
+        string temp = "<li>DodgeBallType: None</li>";
         if (configdata.dodgeball_type != "")
         {
             temp = string.Format("<li>DodgeBallType: %1</li>",configdata.dodgeball_type);
@@ -71,11 +71,11 @@ modded class SparkPlug
             temp = string.Format("<li>SpectateUncon: true</li>");
         }
         modinfo += temp;
-        modinfo += "</ul>"
+        modinfo += "</ul>";
 
         if (glc)
         {
-            NeoDodgeBall_cftools_icon = new _Event("DodgeBallModInfo", "volleyball", this, modinfo);
+            NeoDodgeBall_cftools_icon = new _Event("DodgeBallModInfo", "volleyball-ball", this, modinfo);
             if (NeoDodgeBall_cftools_icon)
             {
                 glc.RegisterEvent(this.NeoDodgeBall_cftools_icon);

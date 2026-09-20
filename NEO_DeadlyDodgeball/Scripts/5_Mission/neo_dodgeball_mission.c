@@ -19,7 +19,7 @@ void NEODodgeBall_update_icon ()
             if (!g_neo_dodgeball_icon)
             {
                 int flags = ECE_SETUP | ECE_UPDATEPATHGRAPH | ECE_CREATEPHYSICS | ECE_NOLIFETIME | ECE_DYNAMIC_PERSISTENCY;
-                g_neo_dodgeball_icon = g_Game.CreateObjectEx("SparkPlug", neo_dodgeball_cd.icon_position, flags, RF_IGNORE);
+                g_neo_dodgeball_icon = SparkPlug.Cast(g_Game.CreateObjectEx("SparkPlug", neo_dodgeball_cd.icon_position, flags, RF_IGNORE));
             }
             if (g_neo_dodgeball_icon)
             {
@@ -56,7 +56,7 @@ class NEODodgeBall_ConfigMod : GameLabsContextAction
     {
         this.actionCode = "NEODodgeBall_ConfigMod";
         this.actionName = "Config Deadly Dodgeball Mod";
-        this.actionIcon = "volleyball";
+        this.actionIcon = "volleyball-ball";
         this.actionColour = "default";
         this.actionContext = "world";
         
@@ -105,10 +105,10 @@ class NEODodgeBall_ConfigMod : GameLabsContextAction
         configItem.options.Insert("hideIcon", hideIcon);
 
         this.parameters.Insert("configItem", configItem);        
-        
+
+
         // editable fields
         GameLabsActionParameter dbtype = new GameLabsActionParameter("Dodgeball Type", "what items are dodgeballs", "cf_itemlist");
-        dbtype.valueString = "Pumpkin";
         this.parameters.Insert("dbtype", dbtype);
         
         GameLabsActionParameter int_ms_val = new GameLabsActionParameter("ConsequenceDelay/SoundSetDuration", "milliseconds value","int");
