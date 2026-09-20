@@ -43,35 +43,35 @@ modded class SparkPlug
             return;
         }
 
-        string modinfo = "<ul>";
+        string modinfo = "";
 
-        string temp = "<li>DodgeBallType: None</li>";
+        string temp = "DodgeBallType: None";
         if (configdata.dodgeball_type != "")
         {
-            temp = string.Format("<li>DodgeBallType: %1</li>",configdata.dodgeball_type);
+            temp = string.Format("DodgeBallType: %1",configdata.dodgeball_type);
         }
         modinfo += temp;
 
-        modinfo += string.Format("<li>ConsequenceDelay_ms: %1</li>", configdata.consequence_delay_ms);
+        modinfo += string.Format("<br/>ConsequenceDelay_ms: %1", configdata.consequence_delay_ms);
 
-        modinfo += string.Format("<li>Consequence: %1</li>", configdata.consequence);
+        modinfo += string.Format("<br/>Consequence: %1", configdata.consequence);
 
-        temp = "<li>SoundSet: None</li>";
+        temp = "<br/>SoundSet: None";
         if (configdata.soundset != "")
         {
-            temp = string.Format("<li>SoundSet: %1</li>", configdata.soundset);
+            temp = string.Format("<br/>SoundSet: %1", configdata.soundset);
         }
         modinfo += temp;
 
-        modinfo += string.Format("<li>SoundSetDuration_ms: %1</li>", configdata.soundset_duration_ms);
+        modinfo += string.Format("<br/>SoundSetDuration_ms: %1", configdata.soundset_duration_ms);
 
-        temp = "<li>SpectateUncon: false</li>";
+        temp = "<br/>SpectateUncon: false";
         if (configdata.spectate_uncon)
         {
-            temp = string.Format("<li>SpectateUncon: true</li>");
+            temp = string.Format("<br/>SpectateUncon: true");
         }
         modinfo += temp;
-        modinfo += "</ul>";
+        
 
         if (glc)
         {
