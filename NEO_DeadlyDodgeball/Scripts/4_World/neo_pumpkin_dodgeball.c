@@ -5,19 +5,73 @@
 
 bool NEO_DodgeBallDebug = false;
 float NEO_DodgeBall_min_velocity = 0.3; //dodge balls aren't deadly below this velocity
-float NEO_DodgeBall_fake_sound_delay = 10; // see RPC handler for RPC_SOUND_ARTILLERY_SINGLE delay before calllater
 
-
-void NEODodgeBall_delay_kill_player(DayZPlayerImplement dzpi)
+void NEODodgeBall_consequence(DayZPlayerImplement dzpi, string consequence_type)
 {
+    PlayerBase pb;
     if (dzpi)
     {
-        dzpi.SetHealth("","",0.0);
+        if (consequence_type == "death")
+        {
+            dzpi.SetHealth("","",0.0);
+        }
+        else if (consequence_type == "uncon")
+        {
+            dzpi.neo_dodgeball_unconned = true;
+            pb  = PlayerBase.Cast(dzpi);
+            if (pb)
+            {
+                pb.GiveShock(-100);
+            }
+        }
+        else if (consequence_type == "legbreak")
+        {
+            pb = PlayerBase.Cast(dzpi);
+            if(pb)
+            {
+                pb.SetLegHealth();
+                if (pb.GetModifiersManager().IsModifierActive(eModifiers.MDF_BROKEN_LEGS))//effectively resets the modifier
+                {
+                    pb.GetModifiersManager().DeactivateModifier(eModifiers.MDF_BROKEN_LEGS);
+                }
+                pb.GetModifiersManager().ActivateModifier(eModifiers.MDF_BROKEN_LEGS);
+            }
+        }
+        else
+        {
+            Print(string.Format("Neododgeball invalid consequence %1",consequence_type));
+        }
     }
-}
+};
+
+void NEODodgeBall_playsound(ItemBase dodgeball, string soundset, int duration)
+{
+    if (!dodgeball || (soundset == ""))
+    {
+        return;
+    }
+    
+    if (soundset == "contamination")
+    {
+        // drop a contamination RPC on dodgeball position
+        Param1<vector> pos = new Param1<vector>(vector.Zero);
+        array<ref Param> params = new array<ref Param>();
+        pos.param1 = dodgeball.GetPosition();
+        params.Insert(pos);
+        g_Game.RPC(null, ERPCs.RPC_SOUND_CONTAMINATION, params, true);
+    }
+    else if (duration > 0)
+    {
+        Param2<bool, string> play = new Param2<bool, string>(true, soundset);
+        g_Game.RPCSingleParam(dodgeball, ERPCs.RPC_SOUND_LOCK_ATTACH, play, true );
+        Param2<bool, string> stopplay = new Param2<bool, string>(false, soundset);
+        g_Game.GetCallQueue( CALL_CATEGORY_SYSTEM ).CallLater(g_Game.RPCSingleParam, duration, false, dodgeball,ERPCs.RPC_SOUND_LOCK_ATTACH, stopplay, true  );
+    }
+};
 
 
-void NEODodgeBall_handle_kill(DayZPlayerImplement dzpi, Pumpkin pumpkin)
+
+void NEODodgeBall_handle_kill(DayZPlayerImplement dzpi, ItemBase ib)
 {
     if (dzpi)
     {
@@ -25,7 +79,7 @@ void NEODodgeBall_handle_kill(DayZPlayerImplement dzpi, Pumpkin pumpkin)
         vector dzpi_pos = dzpi.GetPosition();
 
         PlayerBase victim = PlayerBase.Cast(dzpi);
-        PlayerBase killer = pumpkin.NEO_dodgeball_thrower;
+        PlayerBase killer = ib.NEO_dodgeball_thrower;
         // verify real players for logging
         string vic_pi;
         string kil_pi;
@@ -67,40 +121,46 @@ void NEODodgeBall_handle_kill(DayZPlayerImplement dzpi, Pumpkin pumpkin)
                 adm.LogPrint( vic_prefix + " killed by " + kil_prefix + " with DodgeBall" + " from " + dist + " meters " );
             }
         }
-
-
-        // drop a contamination RPC on the dying player
-        Param1<vector> pos = new Param1<vector>(vector.Zero);
-        array<ref Param> params = new array<ref Param>();
-        pos.param1 = dzpi_pos;
-        params.Insert(pos);
-        g_Game.RPC(null, ERPCs.RPC_SOUND_CONTAMINATION, params, true);
-
-        // dying player dies 500 ms later so they can see/hear FX
-        g_Game.GetCallQueue( CALL_CATEGORY_SYSTEM ).CallLater( NEODodgeBall_delay_kill_player, 500, false, dzpi);
+        
+        NEODodgeBall_ConfigData ncd = NEODodgeBall_Config.GetConfigData();
+        if (ncd)
+        {
+            if (ncd.consequence_delay_ms > 0)
+            {
+                // dying player dies 500 ms later so they can see/hear FX
+                g_Game.GetCallQueue( CALL_CATEGORY_SYSTEM ).CallLater( NEODodgeBall_consequence, ncd.consequence_delay_ms, false, dzpi, ncd.consequence);
+            }
+            else
+            {
+                NEODodgeBall_consequence(dzpi, ncd.consequence);
+            }
+            NEODodgeBall_playsound(ib, ncd.soundset, ncd.soundset_duration_ms);
+        }
     }
-}
+};
 
 
 modded class DayZPlayerImplement extends DayZPlayer
 {
+    bool neo_dodgeball_unconned = false;
+
     void NEO_player_contact_dodgeball(IEntity other)
     {
         if (other)
         {
-            Pumpkin p = Pumpkin.Cast(other);
-            if (p)
+            ItemBase ib = ItemBase.Cast(other);
+            if (ib)
             {
-                float velocity = GetVelocity(p).Length();
+                float velocity = GetVelocity(ib).Length();
                 if (velocity < NEO_DodgeBall_min_velocity)
                 {
-                    p.NEO_i_am_a_dodgeball_now = false;
+                    ib.NEO_i_am_a_dodgeball_now = false;
                     return;
                 }
-                if (p.NEO_i_am_a_dodgeball_now)
+                if (ib.NEO_i_am_a_dodgeball_now)
                 {
-                    NEODodgeBall_handle_kill(this, p);
-                    p.NEO_i_am_a_dodgeball_now = false;
+                    NEODodgeBall_handle_kill(this, ib);
+                    ib.NEO_i_am_a_dodgeball_now = false;
                 }
             }
         }
@@ -127,9 +187,9 @@ modded class DayZPlayerImplement extends DayZPlayer
         }
         NEO_player_contact_dodgeball(other);
     }
-}
+};
 
-modded class Pumpkin : Edible_Base
+modded class ItemBase
 {
     bool NEO_i_am_a_dodgeball_now = false;
     PlayerBase NEO_dodgeball_thrower;
@@ -144,7 +204,7 @@ modded class Pumpkin : Edible_Base
         {
             if (NEO_DodgeBallDebug)
             {
-                GetGame().AdminLog("Pumpkin is dodgeball");
+                GetGame().AdminLog("ItemBase is dodgeball");
             }
             // if not moving (velocity less than .2 for now, then no longer deadly), 
             // otherwise I think ppl will die picking up a stopped 'ball'
@@ -192,6 +252,8 @@ modded class Pumpkin : Edible_Base
         super.OnInventoryExit(player);
         NEO_i_am_a_dodgeball_now = false;
         
+        NEODodgeBall_ConfigData ncd = NEODodgeBall_Config.GetConfigData();
+        
         PlayerBase p = PlayerBase.Cast( player );
         if (p)
         {
@@ -200,12 +262,15 @@ modded class Pumpkin : Edible_Base
             {
                 if (player_throwing.IsThrowingAnimationPlaying())
                 {
-                    if (NEO_DodgeBallDebug)
+                    if (ncd && this.IsKindOf(ncd.dodgeball_type))
                     {
-                        GetGame().AdminLog("Is deadly dodge ball now");
+                        if (NEO_DodgeBallDebug)
+                        {
+                            GetGame().AdminLog("Is deadly dodge ball now");
+                        }
+                        NEO_i_am_a_dodgeball_now = true;
+                        NEO_dodgeball_thrower = p;
                     }
-                    NEO_i_am_a_dodgeball_now = true;
-                    NEO_dodgeball_thrower = p;
                 }
                 else
                 {
@@ -231,7 +296,7 @@ modded class Pumpkin : Edible_Base
             }
         }
     }
-}
+};
 
 
 #endif // SERVER
